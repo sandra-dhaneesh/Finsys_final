@@ -33138,4 +33138,412 @@ def Fin_shareDayBookReportToEmail(request):
             print(e)
             messages.error(request, f'{e}')
             return redirect(Fin_dayBookReport)
+        
+
+
+# def stocksummary(request):
+#     if 's_id' in request.session:
+#         s_id = request.session['s_id']
+#         data = Fin_Login_Details.objects.get(id = s_id)
+#         if data.User_Type == 'Company':
+#             cmp = Fin_Company_Details.objects.get(Login_Id=s_id)
+#         else:
+#             cmp = Fin_Staff_Details.objects.get(Login_Id = s_id).company_id
+
+#         allmodules = Fin_Modules_List.objects.get(company_id = cmp,status = 'New')
+#         # items = Fin_Items.objects.get(Company=cmp)
+
+
+#         toda = date.today()
+#         tod = toda.strftime("%Y-%m-%d")
+#         filmeth = request.POST.get('reportperiod', 'default_value')
+
+#         if filmeth == 'Today':
+#             fromdate = tod
+#             todate = tod
+#         elif filmeth == 'Custom':
+#             fromdate = request.POST['from_date']
+#             todate = request.POST['to_date']
+#         elif filmeth == 'This month':
+
+#             input_dt = date.today()
+#             day_num = input_dt.strftime("%d")
+#             res = input_dt - timedelta(days=int(day_num) - 1)
+#             fromdate = str(res)
+
+#             any_day=date.today()
+#             next_month = any_day.replace(day=28) + timedelta(days=4)
+#             d = next_month - timedelta(days=next_month.day)
+
+#             todate = str(d)
+#         elif filmeth == 'This financial year':
+#             if int(toda.strftime("%m")) >= 1 and int(toda.strftime("%m")) <= 3:
+#                 pyear = int(toda.strftime("%Y")) - 1
+#                 fromdate = f'{pyear}-03-01'
+#                 todate = f'{toda.strftime("%Y")}-03-31'
+#             else:
+#                 pyear = int(toda.strftime("%Y")) + 1
+#                 fromdate = f'{toda.strftime("%Y")}-03-01'
+#                 todate = f'{pyear}-03-31'
+#         else:
+#             fromdate =cmp.Start_Date
+#             todate = date.today()
+
+        
+
+#         item = Fin_Items.objects.filter(item_created__gte=fromdate,item_created__lte=todate)
+        
+
+#         try:
+#             fromdates=datetime.datetime.strptime(fromdate, "%Y-%m-%d").date()
+#             todates=datetime.datetime.strptime(todate, "%Y-%m-%d").date()
+#         except:
+#             fromdates=cmp.Start_Date
+#             todates=date.today()
+
+#         context = {'allmodules':allmodules, 'item':item,'cmp':cmp,"fromdate":fromdates,"todate":todates}
+#         return render(request, 'company/reports/stocksummary.html', context)
+def stocksummary1(request):
+    if 's_id' in request.session:
+        s_id = request.session['s_id']
+        data = Fin_Login_Details.objects.get(id=s_id)
+        if data.User_Type == "Company":
+            com = Fin_Company_Details.objects.get(Login_Id=s_id)
+            cmp = com
+        else:
+            com = Fin_Staff_Details.objects.get(Login_Id=s_id)
+            cmp = com.company_id
+
+        allmodules = Fin_Modules_List.objects.get(company_id=cmp, status='New')
+        items = Fin_Items.objects.filter(Company=cmp)
+
+        toda = date.today()
+        tod = toda.strftime("%Y-%m-%d")
+        filmeth = request.POST.get('reportperiod', 'default_value')
+
+        if filmeth == 'Today':
+            fromdate = tod
+            todate = tod
+        elif filmeth == 'Custom':
+            fromdate = request.POST['from_date']
+            todate = request.POST['to_date']
+        elif filmeth == 'This month':
+            input_dt = date.today()
+            day_num = input_dt.strftime("%d")
+            res = input_dt - timedelta(days=int(day_num) - 1)
+            fromdate = str(res)
+            any_day = date.today()
+            next_month = any_day.replace(day=28) + timedelta(days=4)
+            d = next_month - timedelta(days=next_month.day)
+            todate = str(d)
+        elif filmeth == 'This financial year':
+            if int(toda.strftime("%m")) >= 1 and int(toda.strftime("%m")) <= 3:
+                pyear = int(toda.strftime("%Y")) - 1
+                fromdate = f'{pyear}-03-01'
+                todate = f'{toda.strftime("%Y")}-03-31'
+            else:
+                pyear = int(toda.strftime("%Y")) + 1
+                fromdate = f'{toda.strftime("%Y")}-03-01'
+                todate = f'{pyear}-03-31'
+
+        else:
+            fromdate = cmp.Start_Date
+            todate = date.today()
+
+
+        # Corrected filtering using Django ORM syntax
+        items = Fin_Items.objects.filter(item_created__gte=fromdate, item_created__lte=todate,Company=cmp)
+
+        try:
+            fromdates = datetime.datetime.strptime(fromdate, "%Y-%m-%d").date()
+            todates = datetime.datetime.strptime(todate, "%Y-%m-%d").date()
+        except:
+            fromdates = fromdate
+            todates = todate
+        reportData = []
+
+        for i in items:
+            qIn = 0
+            qOut = 0
+            name = i.name
+            bQty = int(i.opening_stock)
+            pAmt = i.purchase_price
+            sAmt = i.selling_price
+            itmdate = i.item_created
+
+            invItems = Fin_Invoice_Items.objects.filter(Item=i)
+            recInvItems = Fin_Recurring_Invoice_Items.objects.filter(Item=i)
+            retInvItem = Fin_Retainer_Invoice_Items.objects.filter(Item=i)
+
+            if invItems:
+                for itm in invItems:
+                    qOut += int(itm.quantity)
+
+            if recInvItems:
+                for itm in recInvItems:
+                    qOut += int(itm.quantity)
+
+            if retInvItem:
+                for itm in retInvItem:
+                    qOut += int(itm.Quantity)
+
+            billItems = Fin_Purchase_Bill_Item.objects.filter(item=i)
+            recBillItems = Fin_Recurring_Bill_Items.objects.filter(items=i)
+
+            if billItems:
+                for itm in billItems:
+                    qIn += int(itm.qty)
+
+            if recBillItems:
+                for itm in recBillItems:
+                    qIn += int(itm.quantity)
+
+            qinQty = bQty + qIn
+            closingQty = qinQty - qOut
+
+            det = {
+                'name': name,
+                'pAmount': pAmt,
+                'sAmount': sAmt,
+                'bQty': bQty,
+                'qtyIn': qIn,
+                'qtyOut': qOut,
+                'cQty': closingQty,
+                'qinQty': qinQty
+            }
+            reportData.append(det)
+
+        context = {
+            'allmodules': allmodules, 'com': com, 'cmp': cmp, 'data': data, 'reportData': reportData,
+            'startDate': None, 'endDate': None,"fromdate":fromdates,"todate":todates,'filmeth':filmeth
+        }
+        return render(request, 'company/reports/stocksummary.html', context)
+    else:
+        return redirect('/')       
+
+def stocksummary2(request):
+    if 's_id' in request.session:
+        s_id = request.session['s_id']
+        data = Fin_Login_Details.objects.get(id=s_id)
+        if data.User_Type == "Company":
+            com = Fin_Company_Details.objects.get(Login_Id=s_id)
+            cmp = com
+        else:
+            com = Fin_Staff_Details.objects.get(Login_Id=s_id)
+            cmp = com.company_id
+
+        allmodules = Fin_Modules_List.objects.get(company_id=cmp, status='New')
+        items = Fin_Items.objects.filter(Company=cmp)
+
+
+
+        reportData = []
+
+        for i in items:
+            qIn = 0
+            qOut = 0
+            name = i.name
+            bQty = int(i.opening_stock)
+            pAmt = i.purchase_price
+            sAmt = i.selling_price
+            itmdate = i.item_created
+
+            invItems = Fin_Invoice_Items.objects.filter(Item=i)
+            recInvItems = Fin_Recurring_Invoice_Items.objects.filter(Item=i)
+            retInvItem = Fin_Retainer_Invoice_Items.objects.filter(Item=i)
+
+            if invItems:
+                for itm in invItems:
+                    qOut += int(itm.quantity)
+
+            if recInvItems:
+                for itm in recInvItems:
+                    qOut += int(itm.quantity)
+
+            if retInvItem:
+                for itm in retInvItem:
+                    qOut += int(itm.Quantity)
+
+            billItems = Fin_Purchase_Bill_Item.objects.filter(item=i)
+            recBillItems = Fin_Recurring_Bill_Items.objects.filter(items=i)
+
+            if billItems:
+                for itm in billItems:
+                    qIn += int(itm.qty)
+
+            if recBillItems:
+                for itm in recBillItems:
+                    qIn += int(itm.quantity)
+
+            qinQty = bQty + qIn
+            closingQty = qinQty - qOut
+
+            det = {
+                'name': name,
+                'pAmount': pAmt,
+                'sAmount': sAmt,
+                'bQty': bQty,
+                'qtyIn': qIn,
+                'qtyOut': qOut,
+                'cQty': closingQty,
+                'qinQty': qinQty
+            }
+            reportData.append(det)
+
+        context = {
+            'allmodules': allmodules, 'com': com, 'cmp': cmp, 'data': data, 'reportData': reportData,
+            'startDate': None, 'endDate': None
+        }
+        return render(request, 'company/reports/stocksummary.html', context)
+    else:
+        return redirect('/')
+
+def Fin_shareStockSummaryToEmail(request):
+    if 's_id' in request.session:
+        s_id = request.session['s_id']
+        data = Fin_Login_Details.objects.get(id=s_id)
+        if data.User_Type == "Company":
+            com = Fin_Company_Details.objects.get(Login_Id=s_id)
+            cmp = com
+        else:
+            com = Fin_Staff_Details.objects.get(Login_Id=s_id)
+            cmp = com.company_id
+
+        allmodules = Fin_Modules_List.objects.get(company_id=cmp, status='New')
+
+        items = Fin_Items.objects.filter(Company=cmp)
+
+        toda = date.today()
+        tod = toda.strftime("%Y-%m-%d")
+        filmeth = request.POST.get('reportperiod', 'default_value')
+
+        if filmeth == 'Today':
+            fromdate = tod
+            todate = tod
+        elif filmeth == 'Custom':
+            fromdate = request.POST['from_date']
+            todate = request.POST['to_date']
+        elif filmeth == 'This month':
+            input_dt = date.today()
+            day_num = input_dt.strftime("%d")
+            res = input_dt - timedelta(days=int(day_num) - 1)
+            fromdate = str(res)
+            any_day = date.today()
+            next_month = any_day.replace(day=28) + timedelta(days=4)
+            d = next_month - timedelta(days=next_month.day)
+            todate = str(d)
+        elif filmeth == 'This financial year':
+            if int(toda.strftime("%m")) >= 1 and int(toda.strftime("%m")) <= 3:
+                pyear = int(toda.strftime("%Y")) - 1
+                fromdate = f'{pyear}-03-01'
+                todate = f'{toda.strftime("%Y")}-03-31'
+            else:
+                pyear = int(toda.strftime("%Y")) + 1
+                fromdate = f'{toda.strftime("%Y")}-03-01'
+                todate = f'{pyear}-03-31'
+        else:
+            fromdate = cmp.Start_Date
+            todate = date.today()
+
+        # Corrected filtering using Django ORM syntax
+        items = Fin_Items.objects.filter(item_created__gte=fromdate, item_created__lte=todate,Company=cmp)
+
+        try:
+            fromdates = datetime.datetime.strptime(fromdate, "%Y-%m-%d").date()
+            todates = datetime.datetime.strptime(todate, "%Y-%m-%d").date()
+        except:
+            fromdates = cmp.Start_Date
+            todates = date.today()
+
+        reportData = []
+
+        for i in items:
+            qIn = 0
+            qOut = 0
+            name = i.name
+            bQty = int(i.opening_stock)
+            pAmt = i.purchase_price
+            sAmt = i.selling_price
+            itmdate = i.item_created
+
+            invItems = Fin_Invoice_Items.objects.filter(Item=i)
+            recInvItems = Fin_Recurring_Invoice_Items.objects.filter(Item=i)
+            retInvItem = Fin_Retainer_Invoice_Items.objects.filter(Item=i)
+
+            if invItems:
+                for itm in invItems:
+                    qOut += int(itm.quantity)
+
+            if recInvItems:
+                for itm in recInvItems:
+                    qOut += int(itm.quantity)
+
+            if retInvItem:
+                for itm in retInvItem:
+                    qOut += int(itm.Quantity)
+
+            billItems = Fin_Purchase_Bill_Item.objects.filter(item=i)
+            recBillItems = Fin_Recurring_Bill_Items.objects.filter(items=i)
+
+            if billItems:
+                for itm in billItems:
+                    qIn += int(itm.qty)
+
+            if recBillItems:
+                for itm in recBillItems:
+                    qIn += int(itm.quantity)
+
+            qinQty = bQty + qIn
+            closingQty = qinQty - qOut
+
+            det = {
+                'name': name,
+                'pAmount': pAmt,
+                'sAmount': sAmt,
+                'bQty': bQty,
+                'qtyIn': qIn,
+                'qtyOut': qOut,
+                'cQty': closingQty,
+                'qinQty': qinQty
+            }
+            reportData.append(det)
+
+
+
+    try:
+        if request.method == 'POST':
+            emails_string = request.POST['email_ids']
+
+            emails_list = [email.strip() for email in emails_string.split(',')]
+            email_message = request.POST['email_message']
+
+
+            
+        
+            context = {
+                    'allmodules': allmodules, 'com': com, 'cmp': cmp, 'data': data, 'reportData': reportData,
+            'startDate': None, 'endDate': None, 'item': items, "fromdate": fromdates, "todate": todates  }
+
+
+            template_path = 'company/reports/stockemail.html'
+            template = get_template(template_path)
+
+            html  = template.render(context)
+            result = BytesIO()
+            pdf = pisa.pisaDocument(BytesIO(html.encode("ISO-8859-1")), result)
+            pdf = result.getvalue()
+            filename = f'Report_StockSummary'
+            subject = f"Report_StockSummary"
+            email = EmailMessage(subject, f"Hi,\nPlease find the attached Report for - Sales By Customer. \n{email_message}\n\n--\nRegards,\n{com.Company_name}\n{com.Address}\n{com.State} - {com.Country}\n{com.Contact}", from_email=settings.EMAIL_HOST_USER, to=emails_list)
+            email.attach(filename, pdf, "application/pdf")
+            email.send(fail_silently=False)
+
+            messages.success(request, 'Report has been shared via email successfully..!')
+            return redirect(stocksummary2)
+    except Exception as e:
+            print(e)
+            messages.error(request, f'{e}')
+            return redirect(stocksummary2)
+
+
 # End

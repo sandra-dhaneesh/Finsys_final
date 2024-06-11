@@ -1,10 +1,12 @@
 #Finsys Final
 import datetime
 from django.db import models
+from django.contrib import admin
 from django_countries.fields import CountryField
 from datetime import timedelta
 from datetime import date
 from django.utils import timezone
+
 
 class Fin_Payment_Terms(models.Model):
     payment_terms_number = models.IntegerField(null=True,blank=True)  
